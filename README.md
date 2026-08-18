@@ -19,6 +19,10 @@ curl http://localhost:3000/health
 
 Dashboard tersedia di `http://localhost:3000/`
 
+## API Documentation (Swagger)
+
+Dokumentasi interaktif tersedia di `http://localhost:4000/api-docs` (Swagger UI), dengan spec mentah di `http://localhost:4000/api-docs.json`.
+
 ## API Endpoints
 
 | Endpoint | Method | Deskripsi |

@@ -1,8 +1,13 @@
 const express = require('express');
+const swaggerUi = require('swagger-ui-express');
 const { Pool } = require('pg');
+const swaggerSpec = require('./swagger');
 
 const app = express();
 app.use(express.json());
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api-docs.json', (req, res) => res.json(swaggerSpec));
 
 const pool = new Pool({
   host: process.env.PGHOST || 'postgres',
@@ -14,6 +19,36 @@ const pool = new Pool({
   idleTimeoutMillis: 30000,
 });
 
+/**
+ * @openapi
+ * /health:
+ *   get:
+ *     tags: [Health]
+ *     summary: Health check + jumlah total record
+ *     description: Mengecek koneksi database dan mengembalikan total record pada tabel ws_user.
+ *     responses:
+ *       200:
+ *         description: Service dan database dalam kondisi sehat
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status: { type: string, example: ready }
+ *                 total_records: { type: integer, example: 14999896 }
+ *                 database: { type: string, example: connected }
+ *                 timestamp: { type: string, format: date-time }
+ *       500:
+ *         description: Database tidak terhubung
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status: { type: string, example: error }
+ *                 database: { type: string, example: disconnected }
+ *                 error: { type: string }
+ */
 // ROUND 1: GET /health
 app.get('/health', async (req, res) => {
   try {
@@ -29,11 +64,73 @@ app.get('/health', async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/health:
+ *   get:
+ *     tags: [Health]
+ *     summary: Simple health check (load test)
+ *     description: Health check ringan tanpa query database, dipakai untuk load testing.
+ *     responses:
+ *       200:
+ *         description: Service berjalan
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ok: { type: boolean, example: true }
+ *                 status: { type: string, example: running }
+ */
 // ROUND 5: GET /api/health
 app.get('/api/health', (req, res) => {
   res.status(200).json({ ok: true, status: 'running' });
 });
 
+/**
+ * @openapi
+ * /api/search:
+ *   get:
+ *     tags: [Search]
+ *     summary: Cari user berdasarkan nama, email, telepon, atau lokasi
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema: { type: string }
+ *         description: Kata kunci pencarian (dicocokkan dengan ILIKE %q%)
+ *       - in: query
+ *         name: type
+ *         schema: { type: string, enum: [name, email, phone, location], default: name }
+ *         description: Kolom yang dicari
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 10, maximum: 100 }
+ *         description: Jumlah maksimum hasil (di-cap ke 100)
+ *       - in: query
+ *         name: offset
+ *         schema: { type: integer, default: 0 }
+ *         description: Offset pagination
+ *     responses:
+ *       200:
+ *         description: Hasil pencarian
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 query: { type: string }
+ *                 type: { type: string }
+ *                 results:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/SearchResultItem' }
+ *                 total: { type: integer, example: 42 }
+ *                 took_ms: { type: integer, example: 87 }
+ *       500:
+ *         description: Terjadi error pada server
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
 // ROUND 2: GET /api/search
 app.get('/api/search', async (req, res) => {
   const start = Date.now();
@@ -85,6 +182,30 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/metrics:
+ *   get:
+ *     tags: [Metrics]
+ *     summary: Metrik kualitas data
+ *     description: Menghitung jumlah email duplikat, field yang hilang (email/telepon), dan skor kualitas data keseluruhan.
+ *     responses:
+ *       200:
+ *         description: Metrik kualitas data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 duplicates: { type: integer, example: 12000 }
+ *                 missing_fields: { type: integer, example: 720000 }
+ *                 quality_score: { type: number, example: 97.6 }
+ *       500:
+ *         description: Terjadi error pada server
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
 // ROUND 3: GET /api/metrics
 app.get('/api/metrics', async (req, res) => {
   try {
@@ -111,6 +232,50 @@ app.get('/api/metrics', async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/duplicates:
+ *   post:
+ *     tags: [Duplicates]
+ *     summary: Deteksi user duplikat
+ *     description: Mencari pasangan user yang kemungkinan duplikat berdasarkan email, telepon, atau IP address terakhir yang digunakan.
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               method:
+ *                 type: string
+ *                 enum: [email, phone, ip_address]
+ *                 default: email
+ *                 description: Metode deteksi duplikat
+ *           examples:
+ *             email:
+ *               value: { method: email }
+ *             phone:
+ *               value: { method: phone }
+ *             ip_address:
+ *               value: { method: ip_address }
+ *     responses:
+ *       200:
+ *         description: Daftar pasangan user duplikat (maksimum 1000 pasangan)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 duplicates:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/DuplicatePair' }
+ *                 count: { type: integer, example: 250 }
+ *       500:
+ *         description: Terjadi error pada server
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
 // ROUND 4: POST /api/duplicates
 app.post('/api/duplicates', async (req, res) => {
   try {
@@ -144,6 +309,41 @@ app.post('/api/duplicates', async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/user-profile/{user_id}:
+ *   get:
+ *     tags: [Profile]
+ *     summary: Profil user gabungan (JOIN orders/transactions/activity)
+ *     description: Mengambil profil user beserta agregat jumlah order, transaksi, dan aktivitas (4-table JOIN).
+ *     parameters:
+ *       - in: path
+ *         name: user_id
+ *         required: true
+ *         schema: { type: integer }
+ *         description: ID user
+ *     responses:
+ *       200:
+ *         description: Profil user ditemukan
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/UserProfile' }
+ *       400:
+ *         description: user_id tidak valid
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       404:
+ *         description: User tidak ditemukan
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       500:
+ *         description: Terjadi error pada server
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
 // Round 5 extra: GET /api/user-profile/:user_id (4-table JOIN)
 app.get('/api/user-profile/:user_id', async (req, res) => {
   try {
