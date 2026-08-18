@@ -18,6 +18,14 @@ CREATE INDEX idx_ws_user_status ON ws_user(status);
 CREATE INDEX idx_ws_orders_user_date ON ws_orders(user_id, order_date);
 CREATE INDEX idx_ws_transactions_order_date ON ws_transactions(order_id, transaction_date);
 
+-- Trigram index buat /api/search (ILIKE '%q%' butuh GIN trgm, btree biasa tidak kepakai untuk leading wildcard)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX idx_ws_user_username_trgm ON ws_user USING gin (user_name gin_trgm_ops);
+CREATE INDEX idx_ws_user_fullname_trgm ON ws_user USING gin (full_name gin_trgm_ops);
+CREATE INDEX idx_ws_user_email_trgm ON ws_user USING gin (user_email gin_trgm_ops);
+CREATE INDEX idx_ws_user_msisdn_trgm ON ws_user USING gin (msisdn gin_trgm_ops);
+CREATE INDEX idx_ws_user_location_trgm ON ws_user USING gin (location gin_trgm_ops);
+
 -- Update statistik planner setelah bikin index baru
 ANALYZE ws_user;
 ANALYZE ws_orders;
