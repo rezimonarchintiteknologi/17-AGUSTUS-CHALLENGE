@@ -157,17 +157,27 @@ function DuplicatesSection() {
   const [meta, setMeta] = useState('');
   const [duplicates, setDuplicates] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   async function runDuplicates() {
     setLoading(true);
+    setError('');
     try {
       const data = await fetchJSON('/api/duplicates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ method }),
       });
-      setMeta(`${data.count ?? 0} pasangan ditemukan`);
-      setDuplicates((data.duplicates || []).slice(0, 100));
+      if (data.error) {
+        setError(data.error);
+        setDuplicates([]);
+      } else {
+        setMeta(`${data.count ?? 0} pasangan ditemukan`);
+        setDuplicates((data.duplicates || []).slice(0, 100));
+      }
+    } catch {
+      setError('Gagal memuat data duplikat, coba lagi');
+      setDuplicates([]);
     } finally {
       setLoading(false);
     }
@@ -187,6 +197,7 @@ function DuplicatesSection() {
         </button>
         {loading ? <span className="sub loading">Memuat hasil, mohon tunggu...</span> : <span className="sub">{meta}</span>}
       </div>
+      {!loading && error && <div className="profile-error">{error}</div>}
       <table>
         <thead>
           <tr><th>User ID 1</th><th>User ID 2</th><th>Similarity</th></tr>
@@ -195,7 +206,7 @@ function DuplicatesSection() {
           {loading ? (
             <tr><td colSpan={3}><span className="spinner" /> Memuat...</td></tr>
           ) : duplicates.length === 0 ? (
-            <tr><td colSpan={3}>Tidak ada duplikat</td></tr>
+            <tr><td colSpan={3}>{error ? '-' : 'Tidak ada duplikat'}</td></tr>
           ) : (
             duplicates.map((d, i) => (
               <tr key={`${d.id1}-${d.id2}-${i}`}>

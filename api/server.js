@@ -281,26 +281,49 @@ app.post('/api/duplicates', async (req, res) => {
   try {
     const method = (req.body && req.body.method) || 'email';
     let query;
+    // Narrow down to groups that actually repeat (GROUP BY ... HAVING COUNT(*) > 1) before
+    // self-joining — joining the raw 15M-row table against itself on a non-unique column
+    // produces a near-full-table merge/nested-loop join and takes 30-60+ seconds.
     if (method === 'ip_address') {
       query = `
         WITH last_ip AS (
           SELECT DISTINCT ON (user_id) user_id, ip_address
           FROM ws_user_activity WHERE ip_address IS NOT NULL
           ORDER BY user_id, activity_timestamp DESC
+        ),
+        dup_ips AS (
+          SELECT ip_address FROM last_ip GROUP BY ip_address HAVING COUNT(*) > 1 LIMIT 500
+        ),
+        dup_rows AS (
+          SELECT l.user_id, l.ip_address FROM last_ip l JOIN dup_ips d ON d.ip_address = l.ip_address
         )
         SELECT a.user_id AS id1, b.user_id AS id2, 0.95::numeric AS similarity
-        FROM last_ip a JOIN last_ip b ON a.ip_address = b.ip_address AND a.user_id < b.user_id
+        FROM dup_rows a JOIN dup_rows b ON a.ip_address = b.ip_address AND a.user_id < b.user_id
         LIMIT 1000`;
     } else if (method === 'phone') {
       query = `
+        WITH dup_phones AS (
+          SELECT msisdn FROM ws_user WHERE msisdn IS NOT NULL AND msisdn != ''
+          GROUP BY msisdn HAVING COUNT(*) > 1 LIMIT 500
+        ),
+        dup_rows AS (
+          SELECT u.user_id, u.msisdn FROM ws_user u JOIN dup_phones d ON d.msisdn = u.msisdn
+        )
         SELECT a.user_id AS id1, b.user_id AS id2, 0.9::numeric AS similarity
-        FROM ws_user a JOIN ws_user b ON a.msisdn = b.msisdn AND a.user_id < b.user_id
-        WHERE a.msisdn IS NOT NULL AND a.msisdn != '' LIMIT 1000`;
+        FROM dup_rows a JOIN dup_rows b ON a.msisdn = b.msisdn AND a.user_id < b.user_id
+        LIMIT 1000`;
     } else {
       query = `
+        WITH dup_emails AS (
+          SELECT user_email FROM ws_user WHERE user_email IS NOT NULL AND user_email != ''
+          GROUP BY user_email HAVING COUNT(*) > 1 LIMIT 500
+        ),
+        dup_rows AS (
+          SELECT u.user_id, u.user_email FROM ws_user u JOIN dup_emails d ON d.user_email = u.user_email
+        )
         SELECT a.user_id AS id1, b.user_id AS id2, 1.0::numeric AS similarity
-        FROM ws_user a JOIN ws_user b ON a.user_email = b.user_email AND a.user_id < b.user_id
-        WHERE a.user_email IS NOT NULL AND a.user_email != '' LIMIT 1000`;
+        FROM dup_rows a JOIN dup_rows b ON a.user_email = b.user_email AND a.user_id < b.user_id
+        LIMIT 1000`;
     }
     const result = await pool.query(query);
     res.status(200).json({ duplicates: result.rows, count: result.rows.length });
