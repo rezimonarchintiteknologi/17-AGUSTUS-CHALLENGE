@@ -4,9 +4,9 @@ services:
     container_name: challenge_postgres
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
-      POSTGRES_DB: challenge_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
@@ -21,9 +21,9 @@ services:
     environment:
       PGHOST: postgres
       PGPORT: 5432
-      PGUSER: postgres
-      PGPASSWORD: postgres123
-      PGDATABASE: challenge_db
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
       PORT: 4000
     ports:
       - "4000:4000"
