@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Customer Intelligence Platform</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: #0f1420; color: #e6e9ef; margin: 0; padding: 24px; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .sub { color: #8b93a7; font-size: 13px; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .card { background: #171d2b; border: 1px solid #262e42; border-radius: 10px; padding: 16px; }
+  .card .label { color: #8b93a7; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .card .value { font-size: 24px; font-weight: 600; margin-top: 6px; }
+  .ok { color: #4ade80; } .bad { color: #f87171; }
+  section { background: #171d2b; border: 1px solid #262e42; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+  section h2 { font-size: 15px; margin: 0 0 14px; }
+  input, select, button { background: #0f1420; border: 1px solid #303a52; color: #e6e9ef; padding: 8px 10px; border-radius: 6px; font-size: 13px; }
+  button { background: #3b6cf6; border: none; cursor: pointer; font-weight: 600; }
+  button:hover { background: #2f5adf; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #262e42; }
+  th { color: #8b93a7; font-weight: 500; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  pre { background: #0f1420; padding: 12px; border-radius: 8px; overflow: auto; font-size: 12px; }
+</style>
+</head>
+<body>
+  <h1>Customer Intelligence Platform</h1>
+  <div class="sub">15M+ customer records &middot; PostgreSQL &middot; Node.js/Express</div>
+
+  <div class="grid" id="statusCards"></div>
+
+  <section>
+    <h2>Search Users</h2>
+    <div class="row">
+      <input id="searchQ" placeholder="Kata kunci..." value="a">
+      <select id="searchType">
+        <option value="name">Nama</option>
+        <option value="email">Email</option>
+        <option value="phone">Telepon</option>
+        <option value="location">Lokasi</option>
+      </select>
+      <input id="searchLimit" type="number" value="10" style="width:70px" placeholder="Limit">
+      <button onclick="runSearch()">Cari</button>
+      <span id="searchMeta" class="sub"></span>
+    </div>
+    <table id="searchTable"><thead><tr><th>ID</th><th>Nama</th><th>Email</th><th>Telepon</th><th>Order</th><th>Total Belanja</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <section>
+    <h2>Duplicate Detection</h2>
+    <div class="row">
+      <select id="dupMethod">
+        <option value="email">Email</option>
+        <option value="phone">Telepon</option>
+        <option value="ip_address">IP Address</option>
+      </select>
+      <button onclick="runDuplicates()">Cari Duplikat</button>
+      <span id="dupMeta" class="sub"></span>
+    </div>
+    <table id="dupTable"><thead><tr><th>User ID 1</th><th>User ID 2</th><th>Similarity</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <section>
+    <h2>User Profile Lookup</h2>
+    <div class="row">
+      <input id="profileId" placeholder="user_id">
+      <button onclick="runProfile()">Lihat Profil</button>
+    </div>
+    <pre id="profileOut">-</pre>
+  </section>
+
+<script>
+async function fetchJSON(url, opts) {
+  const r = await fetch(url, opts);
+  return r.json();
+}
+
+async function loadStatus() {
+  const [health, apiHealth, metrics] = await Promise.all([
+    fetchJSON('/health').catch(() => ({status: 'error'})),
+    fetchJSON('/api/health').catch(() => ({ok: false})),
+    fetchJSON('/api/metrics').catch(() => ({})),
+  ]);
+  const cards = [
+    { label: 'DB Status', value: health.status || 'error', cls: health.status === 'ready' ? 'ok' : 'bad' },
+    { label: 'Total Records', value: (health.total_records || 0).toLocaleString('id-ID') },
+    { label: 'API Status', value: apiHealth.status || 'down', cls: apiHealth.ok ? 'ok' : 'bad' },
+    { label: 'Duplicate Emails', value: metrics.duplicates ?? '-' },
+    { label: 'Missing Fields', value: metrics.missing_fields ?? '-' },
+    { label: 'Quality Score', value: (metrics.quality_score ?? '-') + (metrics.quality_score != null ? '%' : '') },
+  ];
+  document.getElementById('statusCards').innerHTML = cards.map(c =>
+    `<div class="card"><div class="label">${c.label}</div><div class="value ${c.cls||''}">${c.value}</div></div>`
+  ).join('');
+}
+
+async function runSearch() {
+  const q = document.getElementById('searchQ').value;
+  const type = document.getElementById('searchType').value;
+  const limit = document.getElementById('searchLimit').value || 10;
+  const data = await fetchJSON(`/api/search?q=${encodeURIComponent(q)}&type=${type}&limit=${limit}&offset=0`);
+  document.getElementById('searchMeta').textContent = `${data.total ?? 0} hasil ditemukan · ${data.took_ms ?? '-'}ms`;
+  const tbody = document.querySelector('#searchTable tbody');
+  tbody.innerHTML = (data.results || []).map(r =>
+    `<tr><td>${r.user_id}</td><td>${r.full_name || r.user_name || '-'}</td><td>${r.user_email || '-'}</td><td>${r.msisdn || '-'}</td><td>${r.order_count}</td><td>${Number(r.total_spent).toLocaleString('id-ID')}</td></tr>`
+  ).join('') || '<tr><td colspan="6">Tidak ada hasil</td></tr>';
+}
+
+async function runDuplicates() {
+  const method = document.getElementById('dupMethod').value;
+  const data = await fetchJSON('/api/duplicates', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method })
+  });
+  document.getElementById('dupMeta').textContent = `${data.count ?? 0} pasangan ditemukan`;
+  const tbody = document.querySelector('#dupTable tbody');
+  tbody.innerHTML = (data.duplicates || []).slice(0, 100).map(d =>
+    `<tr><td>${d.id1}</td><td>${d.id2}</td><td>${d.similarity}</td></tr>`
+  ).join('') || '<tr><td colspan="3">Tidak ada duplikat</td></tr>';
+}
+
+async function runProfile() {
+  const id = document.getElementById('profileId').value;
+  const data = await fetchJSON(`/api/user-profile/${id}`);
+  document.getElementById('profileOut').textContent = JSON.stringify(data, null, 2);
+}
+
+loadStatus();
+</script>
+</body>
+</html>
