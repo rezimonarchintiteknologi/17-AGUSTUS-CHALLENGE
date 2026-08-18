@@ -56,4 +56,9 @@ button:disabled { background: #262e42; color: #6b7386; cursor: not-allowed; }
 }
 td .spinner { border-color: rgba(139, 147, 167, 0.35); border-top-color: #8b93a7; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.profile-error { color: #f87171; font-size: 13px; margin-top: 4px; }
+.profile-candidates { margin-top: 8px; }
+.profile-card { margin-top: 8px; }
+.profile-header { margin-bottom: 14px; }
+.profile-name { font-size: 18px; font-weight: 600; }
 pre { background: #0f1420; padding: 12px; border-radius: 8px; overflow: auto; font-size: 12px; }

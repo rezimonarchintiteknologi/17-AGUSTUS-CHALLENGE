@@ -210,15 +210,53 @@ function DuplicatesSection() {
 }
 
 function ProfileSection() {
-  const [id, setId] = useState('');
-  const [out, setOut] = useState('-');
+  const [name, setName] = useState('');
+  const [candidates, setCandidates] = useState([]);
+  const [profile, setProfile] = useState(null);
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
 
-  async function runProfile() {
+  async function loadProfile(userId) {
+    const data = await fetchJSON(`/api/user-profile/${userId}`);
+    if (data.error) {
+      setError(data.error === 'user not found' ? 'User tidak ditemukan' : data.error);
+    } else {
+      setProfile(data);
+    }
+  }
+
+  async function runSearch() {
     setLoading(true);
+    setError('');
+    setProfile(null);
+    setCandidates([]);
     try {
-      const data = await fetchJSON(`/api/user-profile/${id}`);
-      setOut(JSON.stringify(data, null, 2));
+      const data = await fetchJSON(`/api/search?q=${encodeURIComponent(name)}&type=name&limit=8&offset=0`);
+      const results = data.results || [];
+      if (results.length === 0) {
+        setError('User tidak ditemukan');
+      } else if (results.length === 1) {
+        await loadProfile(results[0].user_id);
+      } else {
+        setCandidates(results);
+      }
+    } catch {
+      setError('Gagal mencari user, coba lagi');
+    } finally {
+      setSearched(true);
+      setLoading(false);
+    }
+  }
+
+  async function selectCandidate(userId) {
+    setLoading(true);
+    setError('');
+    setCandidates([]);
+    try {
+      await loadProfile(userId);
+    } catch {
+      setError('Gagal memuat profil, coba lagi');
     } finally {
       setLoading(false);
     }
@@ -228,13 +266,70 @@ function ProfileSection() {
     <section>
       <h2>User Profile Lookup</h2>
       <div className="row">
-        <input value={id} onChange={(e) => setId(e.target.value)} placeholder="user_id" disabled={loading} />
-        <button onClick={runProfile} disabled={loading}>
-          {loading ? <><span className="spinner" /> Memuat...</> : 'Lihat Profil'}
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama user..." disabled={loading} />
+        <button onClick={runSearch} disabled={loading}>
+          {loading ? <><span className="spinner" /> Mencari...</> : 'Cari'}
         </button>
         {loading && <span className="sub loading">Memuat profil, mohon tunggu...</span>}
       </div>
-      <pre>{loading ? 'Memuat...' : out}</pre>
+
+      {!loading && error && <div className="profile-error">{error}</div>}
+
+      {!loading && !error && candidates.length > 0 && (
+        <div className="profile-candidates">
+          <div className="sub">Ditemukan {candidates.length} kecocokan, pilih salah satu:</div>
+          <table>
+            <thead>
+              <tr><th>Nama</th><th>Email</th><th>Telepon</th><th></th></tr>
+            </thead>
+            <tbody>
+              {candidates.map((c) => (
+                <tr key={c.user_id}>
+                  <td>{c.full_name || c.user_name || '-'}</td>
+                  <td>{c.user_email || '-'}</td>
+                  <td>{c.msisdn || '-'}</td>
+                  <td><button onClick={() => selectCandidate(c.user_id)}>Lihat Profil</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!loading && !error && profile && (
+        <div className="profile-card">
+          <div className="profile-header">
+            <div className="profile-name">{profile.full_name || profile.user_name || `User #${profile.user_id}`}</div>
+            <div className="sub">
+              ID {profile.user_id} &middot; {profile.user_email || 'Tanpa email'} &middot; {profile.msisdn || 'Tanpa telepon'}
+            </div>
+          </div>
+          <div className="grid">
+            <div className="card">
+              <div className="label">Jumlah Order</div>
+              <div className="value">{profile.order_count}</div>
+            </div>
+            <div className="card">
+              <div className="label">Total Belanja</div>
+              <div className="value">{Number(profile.total_spent).toLocaleString('id-ID')}</div>
+            </div>
+            <div className="card">
+              <div className="label">Jumlah Transaksi</div>
+              <div className="value">{profile.transaction_count}</div>
+            </div>
+            <div className="card">
+              <div className="label">Total Nilai Transaksi</div>
+              <div className="value">{Number(profile.total_transaction_amount).toLocaleString('id-ID')}</div>
+            </div>
+            <div className="card">
+              <div className="label">Jumlah Aktivitas</div>
+              <div className="value">{profile.activity_count}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!loading && !searched && <div className="sub">Masukkan nama user lalu klik &quot;Cari&quot;.</div>}
     </section>
   );
 }
