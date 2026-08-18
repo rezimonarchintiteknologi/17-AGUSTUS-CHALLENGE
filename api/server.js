@@ -1,10 +1,8 @@
 const express = require('express');
-const path = require('path');
 const { Pool } = require('pg');
 
 const app = express();
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
 const pool = new Pool({
   host: process.env.PGHOST || 'postgres',
@@ -177,4 +175,5 @@ app.get('/api/user-profile/:user_id', async (req, res) => {
   }
 });
 
-app.listen(3000, () => console.log('API running on port 3000'));
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => console.log(`API running on port ${PORT}`));

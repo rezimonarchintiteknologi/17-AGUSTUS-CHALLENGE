@@ -24,6 +24,21 @@ services:
       PGUSER: postgres
       PGPASSWORD: postgres123
       PGDATABASE: challenge_db
+      PORT: 4000
+    ports:
+      - "4000:4000"
+
+  web:
+    build:
+      context: ./web
+      args:
+        API_URL: http://api:4000
+    container_name: challenge_web
+    restart: always
+    depends_on:
+      - api
+    environment:
+      API_URL: http://api:4000
     ports:
       - "3000:3000"
 

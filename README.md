@@ -4,8 +4,8 @@ Platform analisis data pelanggan skala 15M+ record, dibangun untuk 17 Agustus Co
 
 ## Tech Stack
 - **Database**: PostgreSQL 14 (Docker)
-- **Backend**: Node.js + Express
-- **Frontend**: HTML/CSS/JS (vanilla, single page dashboard)
+- **Backend**: Node.js + Express (`api/`, port 4000 internal)
+- **Frontend**: Next.js (`web/`, port 3000) — proxies `/health` dan `/api/*` ke backend lewat rewrites, jadi endpoint yang sama tetap diakses dari port 3000
 
 ## Setup & Menjalankan
 
