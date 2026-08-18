@@ -43,4 +43,17 @@ th { color: #8b93a7; font-weight: 500; }
 .pagination { margin-top: 12px; }
 button:disabled { background: #262e42; color: #6b7386; cursor: not-allowed; }
 .loading { color: #f5b93b; }
+.spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 4px;
+  animation: spin 0.7s linear infinite;
+}
+td .spinner { border-color: rgba(139, 147, 167, 0.35); border-top-color: #8b93a7; }
+@keyframes spin { to { transform: rotate(360deg); } }
 pre { background: #0f1420; padding: 12px; border-radius: 8px; overflow: auto; font-size: 12px; }

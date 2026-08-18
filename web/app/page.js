@@ -98,8 +98,8 @@ function SearchSection() {
     <section>
       <h2>All Users</h2>
       <div className="row">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Kata kunci..." />
-        <select value={type} onChange={(e) => setType(e.target.value)}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Kata kunci..." disabled={loading} />
+        <select value={type} onChange={(e) => setType(e.target.value)} disabled={loading}>
           <option value="name">Nama</option>
           <option value="email">Email</option>
           <option value="phone">Telepon</option>
@@ -111,9 +111,12 @@ function SearchSection() {
           onChange={(e) => setLimit(e.target.value)}
           style={{ width: 70 }}
           placeholder="Limit"
+          disabled={loading}
         />
-        <button onClick={() => runSearch(0)} disabled={loading}>Cari</button>
-        {loading ? <span className="sub loading">Memuat...</span> : <span className="sub">{meta}</span>}
+        <button onClick={() => runSearch(0)} disabled={loading}>
+          {loading ? <><span className="spinner" /> Mencari...</> : 'Cari'}
+        </button>
+        {loading ? <span className="sub loading">Memuat hasil, mohon tunggu...</span> : <span className="sub">{meta}</span>}
       </div>
       <table>
         <thead>
@@ -122,8 +125,10 @@ function SearchSection() {
           </tr>
         </thead>
         <tbody>
-          {results.length === 0 ? (
-            <tr><td colSpan={6}>{loading ? 'Memuat...' : 'Tidak ada hasil'}</td></tr>
+          {loading ? (
+            <tr><td colSpan={6}><span className="spinner" /> Memuat...</td></tr>
+          ) : results.length === 0 ? (
+            <tr><td colSpan={6}>Tidak ada hasil</td></tr>
           ) : (
             results.map((r) => (
               <tr key={r.user_id}>
@@ -151,35 +156,45 @@ function DuplicatesSection() {
   const [method, setMethod] = useState('email');
   const [meta, setMeta] = useState('');
   const [duplicates, setDuplicates] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   async function runDuplicates() {
-    const data = await fetchJSON('/api/duplicates', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method }),
-    });
-    setMeta(`${data.count ?? 0} pasangan ditemukan`);
-    setDuplicates((data.duplicates || []).slice(0, 100));
+    setLoading(true);
+    try {
+      const data = await fetchJSON('/api/duplicates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method }),
+      });
+      setMeta(`${data.count ?? 0} pasangan ditemukan`);
+      setDuplicates((data.duplicates || []).slice(0, 100));
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <section>
       <h2>Duplicate Detection</h2>
       <div className="row">
-        <select value={method} onChange={(e) => setMethod(e.target.value)}>
+        <select value={method} onChange={(e) => setMethod(e.target.value)} disabled={loading}>
           <option value="email">Email</option>
           <option value="phone">Telepon</option>
           <option value="ip_address">IP Address</option>
         </select>
-        <button onClick={runDuplicates}>Cari Duplikat</button>
-        <span className="sub">{meta}</span>
+        <button onClick={runDuplicates} disabled={loading}>
+          {loading ? <><span className="spinner" /> Mencari...</> : 'Cari Duplikat'}
+        </button>
+        {loading ? <span className="sub loading">Memuat hasil, mohon tunggu...</span> : <span className="sub">{meta}</span>}
       </div>
       <table>
         <thead>
           <tr><th>User ID 1</th><th>User ID 2</th><th>Similarity</th></tr>
         </thead>
         <tbody>
-          {duplicates.length === 0 ? (
+          {loading ? (
+            <tr><td colSpan={3}><span className="spinner" /> Memuat...</td></tr>
+          ) : duplicates.length === 0 ? (
             <tr><td colSpan={3}>Tidak ada duplikat</td></tr>
           ) : (
             duplicates.map((d, i) => (
@@ -197,20 +212,29 @@ function DuplicatesSection() {
 function ProfileSection() {
   const [id, setId] = useState('');
   const [out, setOut] = useState('-');
+  const [loading, setLoading] = useState(false);
 
   async function runProfile() {
-    const data = await fetchJSON(`/api/user-profile/${id}`);
-    setOut(JSON.stringify(data, null, 2));
+    setLoading(true);
+    try {
+      const data = await fetchJSON(`/api/user-profile/${id}`);
+      setOut(JSON.stringify(data, null, 2));
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <section>
       <h2>User Profile Lookup</h2>
       <div className="row">
-        <input value={id} onChange={(e) => setId(e.target.value)} placeholder="user_id" />
-        <button onClick={runProfile}>Lihat Profil</button>
+        <input value={id} onChange={(e) => setId(e.target.value)} placeholder="user_id" disabled={loading} />
+        <button onClick={runProfile} disabled={loading}>
+          {loading ? <><span className="spinner" /> Memuat...</> : 'Lihat Profil'}
+        </button>
+        {loading && <span className="sub loading">Memuat profil, mohon tunggu...</span>}
       </div>
-      <pre>{out}</pre>
+      <pre>{loading ? 'Memuat...' : out}</pre>
     </section>
   );
 }
