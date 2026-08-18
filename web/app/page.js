@@ -45,14 +45,29 @@ function SearchSection() {
   const [q, setQ] = useState('a');
   const [type, setType] = useState('name');
   const [limit, setLimit] = useState(10);
+  const [offset, setOffset] = useState(0);
   const [meta, setMeta] = useState('');
   const [results, setResults] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
 
-  async function runSearch() {
-    const data = await fetchJSON(`/api/search?q=${encodeURIComponent(q)}&type=${type}&limit=${limit || 10}&offset=0`);
-    setMeta(`${data.total ?? 0} hasil ditemukan · ${data.took_ms ?? '-'}ms`);
-    setResults(data.results || []);
+  async function runSearch(nextOffset) {
+    const effectiveOffset = nextOffset ?? 0;
+    setLoading(true);
+    try {
+      const data = await fetchJSON(`/api/search?q=${encodeURIComponent(q)}&type=${type}&limit=${limit || 10}&offset=${effectiveOffset}`);
+      setMeta(`${data.total ?? 0} hasil ditemukan · ${data.took_ms ?? '-'}ms`);
+      setResults(data.results || []);
+      setTotal(data.total ?? 0);
+      setOffset(effectiveOffset);
+    } finally {
+      setLoading(false);
+    }
   }
+
+  const effectiveLimit = limit || 10;
+  const hasPrev = offset > 0;
+  const hasNext = offset + effectiveLimit < total;
 
   return (
     <section>
@@ -72,8 +87,8 @@ function SearchSection() {
           style={{ width: 70 }}
           placeholder="Limit"
         />
-        <button onClick={runSearch}>Cari</button>
-        <span className="sub">{meta}</span>
+        <button onClick={() => runSearch(0)} disabled={loading}>Cari</button>
+        {loading ? <span className="sub loading">Memuat...</span> : <span className="sub">{meta}</span>}
       </div>
       <table>
         <thead>
@@ -83,7 +98,7 @@ function SearchSection() {
         </thead>
         <tbody>
           {results.length === 0 ? (
-            <tr><td colSpan={6}>Tidak ada hasil</td></tr>
+            <tr><td colSpan={6}>{loading ? 'Memuat...' : 'Tidak ada hasil'}</td></tr>
           ) : (
             results.map((r) => (
               <tr key={r.user_id}>
@@ -98,6 +113,11 @@ function SearchSection() {
           )}
         </tbody>
       </table>
+      <div className="row pagination">
+        <button onClick={() => runSearch(offset - effectiveLimit)} disabled={loading || !hasPrev}>Previous</button>
+        <span className="sub">Offset {offset} - {offset + results.length} dari {total}</span>
+        <button onClick={() => runSearch(offset + effectiveLimit)} disabled={loading || !hasNext}>Next</button>
+      </div>
     </section>
   );
 }

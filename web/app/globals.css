@@ -22,4 +22,7 @@ table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13p
 th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #262e42; }
 th { color: #8b93a7; font-weight: 500; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.pagination { margin-top: 12px; }
+button:disabled { background: #262e42; color: #6b7386; cursor: not-allowed; }
+.loading { color: #f5b93b; }
 pre { background: #0f1420; padding: 12px; border-radius: 8px; overflow: auto; font-size: 12px; }
