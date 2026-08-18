@@ -41,6 +41,31 @@ function StatusCards() {
   );
 }
 
+const NAV_ITEMS = [
+  { key: 'users', label: 'All Users', desc: 'Cari dan telusuri seluruh data pelanggan' },
+  { key: 'duplicates', label: 'Duplicate Detection', desc: 'Temukan email, telepon, atau IP yang duplikat' },
+  { key: 'profile', label: 'User Profile Lookup', desc: 'Lihat detail profil satu pelanggan' },
+];
+
+function NavCards({ active, onSelect }) {
+  return (
+    <div className="nav-grid">
+      {NAV_ITEMS.map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          className={`nav-card${active === item.key ? ' selected' : ''}`}
+          onClick={() => onSelect(item.key)}
+          aria-pressed={active === item.key}
+        >
+          <div className="nav-card-label">{item.label}</div>
+          <div className="nav-card-desc">{item.desc}</div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function SearchSection() {
   const [q, setQ] = useState('a');
   const [type, setType] = useState('name');
@@ -71,7 +96,7 @@ function SearchSection() {
 
   return (
     <section>
-      <h2>Search Users</h2>
+      <h2>All Users</h2>
       <div className="row">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Kata kunci..." />
         <select value={type} onChange={(e) => setType(e.target.value)}>
@@ -191,14 +216,17 @@ function ProfileSection() {
 }
 
 export default function Page() {
+  const [active, setActive] = useState('users');
+
   return (
     <>
       <h1>Customer Intelligence Platform</h1>
       <div className="sub">15M+ customer records &middot; PostgreSQL &middot; Node.js/Express &middot; Next.js</div>
       <StatusCards />
-      <SearchSection />
-      <DuplicatesSection />
-      <ProfileSection />
+      <NavCards active={active} onSelect={setActive} />
+      {active === 'users' && <SearchSection />}
+      {active === 'duplicates' && <DuplicatesSection />}
+      {active === 'profile' && <ProfileSection />}
     </>
   );
 }

@@ -13,6 +13,24 @@ h1 { font-size: 20px; margin-bottom: 4px; }
 .card .label { color: #8b93a7; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
 .card .value { font-size: 24px; font-weight: 600; margin-top: 6px; }
 .ok { color: #4ade80; } .bad { color: #f87171; }
+.nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.nav-card {
+  text-align: left;
+  background: #171d2b;
+  border: 1px solid #262e42;
+  border-radius: 10px;
+  padding: 16px;
+  color: #e6e9ef;
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+.nav-card:hover { border-color: #3b6cf6; }
+.nav-card:active { transform: scale(0.99); }
+.nav-card.selected { border-color: #3b6cf6; background: #1b2540; box-shadow: 0 0 0 1px #3b6cf6; }
+.nav-card-label { font-size: 14px; font-weight: 600; }
+.nav-card.selected .nav-card-label { color: #7fa2ff; }
+.nav-card-desc { color: #8b93a7; font-size: 12px; margin-top: 6px; line-height: 1.4; }
 section { background: #171d2b; border: 1px solid #262e42; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
 section h2 { font-size: 15px; margin: 0 0 14px; }
 input, select, button { background: #0f1420; border: 1px solid #303a52; color: #e6e9ef; padding: 8px 10px; border-radius: 6px; font-size: 13px; }
