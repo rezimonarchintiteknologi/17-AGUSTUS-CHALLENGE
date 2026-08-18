@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:14
+    container_name: challenge_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: challenge_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build: ./api
+    container_name: challenge_api
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres123
+      PGDATABASE: challenge_db
+      PORT: 4000
+    ports:
+      - "4000:4000"
+
+  web:
+    build:
+      context: ./web
+      args:
+        API_URL: http://api:4000
+    container_name: challenge_web
+    restart: always
+    depends_on:
+      - api
+    environment:
+      API_URL: http://api:4000
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
+    external: true
