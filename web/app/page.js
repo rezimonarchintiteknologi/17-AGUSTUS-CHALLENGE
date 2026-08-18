@@ -66,6 +66,19 @@ function NavCards({ active, onSelect }) {
   );
 }
 
+function Breadcrumb({ active, onSelect }) {
+  const current = NAV_ITEMS.find((item) => item.key === active);
+  return (
+    <nav className="breadcrumb" aria-label="Breadcrumb">
+      <button type="button" className="breadcrumb-link" onClick={() => onSelect('users')}>
+        Dashboard
+      </button>
+      <span className="breadcrumb-sep">/</span>
+      <span className="breadcrumb-current">{current?.label}</span>
+    </nav>
+  );
+}
+
 function SearchSection() {
   const [q, setQ] = useState('a');
   const [type, setType] = useState('name');
@@ -200,17 +213,21 @@ function DuplicatesSection() {
       {!loading && error && <div className="profile-error">{error}</div>}
       <table>
         <thead>
-          <tr><th>User ID 1</th><th>User ID 2</th><th>Similarity</th></tr>
+          <tr><th>User ID 1</th><th>Nama 1</th><th>User ID 2</th><th>Nama 2</th><th>Similarity</th></tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={3}><span className="spinner" /> Memuat...</td></tr>
+            <tr><td colSpan={5}><span className="spinner" /> Memuat...</td></tr>
           ) : duplicates.length === 0 ? (
-            <tr><td colSpan={3}>{error ? '-' : 'Tidak ada duplikat'}</td></tr>
+            <tr><td colSpan={5}>{error ? '-' : 'Tidak ada duplikat'}</td></tr>
           ) : (
             duplicates.map((d, i) => (
               <tr key={`${d.id1}-${d.id2}-${i}`}>
-                <td>{d.id1}</td><td>{d.id2}</td><td>{d.similarity}</td>
+                <td>{d.id1}</td>
+                <td>{d.name1 || '-'}</td>
+                <td>{d.id2}</td>
+                <td>{d.name2 || '-'}</td>
+                <td>{d.similarity}</td>
               </tr>
             ))
           )}
@@ -351,9 +368,9 @@ export default function Page() {
   return (
     <>
       <h1>Customer Intelligence Platform</h1>
-      <div className="sub">15M+ customer records &middot; PostgreSQL &middot; Node.js/Express &middot; Next.js</div>
       <StatusCards />
       <NavCards active={active} onSelect={setActive} />
+      <Breadcrumb active={active} onSelect={setActive} />
       {active === 'users' && <SearchSection />}
       {active === 'duplicates' && <DuplicatesSection />}
       {active === 'profile' && <ProfileSection />}

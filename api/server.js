@@ -295,9 +295,14 @@ app.post('/api/duplicates', async (req, res) => {
           SELECT ip_address FROM last_ip GROUP BY ip_address HAVING COUNT(*) > 1 LIMIT 500
         ),
         dup_rows AS (
-          SELECT l.user_id, l.ip_address FROM last_ip l JOIN dup_ips d ON d.ip_address = l.ip_address
+          SELECT l.user_id, l.ip_address, u.full_name, u.user_name
+          FROM last_ip l
+          JOIN dup_ips d ON d.ip_address = l.ip_address
+          JOIN ws_user u ON u.user_id = l.user_id
         )
-        SELECT a.user_id AS id1, b.user_id AS id2, 0.95::numeric AS similarity
+        SELECT a.user_id AS id1, COALESCE(a.full_name, a.user_name) AS name1,
+               b.user_id AS id2, COALESCE(b.full_name, b.user_name) AS name2,
+               0.95::numeric AS similarity
         FROM dup_rows a JOIN dup_rows b ON a.ip_address = b.ip_address AND a.user_id < b.user_id
         LIMIT 1000`;
     } else if (method === 'phone') {
@@ -307,9 +312,11 @@ app.post('/api/duplicates', async (req, res) => {
           GROUP BY msisdn HAVING COUNT(*) > 1 LIMIT 500
         ),
         dup_rows AS (
-          SELECT u.user_id, u.msisdn FROM ws_user u JOIN dup_phones d ON d.msisdn = u.msisdn
+          SELECT u.user_id, u.msisdn, u.full_name, u.user_name FROM ws_user u JOIN dup_phones d ON d.msisdn = u.msisdn
         )
-        SELECT a.user_id AS id1, b.user_id AS id2, 0.9::numeric AS similarity
+        SELECT a.user_id AS id1, COALESCE(a.full_name, a.user_name) AS name1,
+               b.user_id AS id2, COALESCE(b.full_name, b.user_name) AS name2,
+               0.9::numeric AS similarity
         FROM dup_rows a JOIN dup_rows b ON a.msisdn = b.msisdn AND a.user_id < b.user_id
         LIMIT 1000`;
     } else {
@@ -319,9 +326,11 @@ app.post('/api/duplicates', async (req, res) => {
           GROUP BY user_email HAVING COUNT(*) > 1 LIMIT 500
         ),
         dup_rows AS (
-          SELECT u.user_id, u.user_email FROM ws_user u JOIN dup_emails d ON d.user_email = u.user_email
+          SELECT u.user_id, u.user_email, u.full_name, u.user_name FROM ws_user u JOIN dup_emails d ON d.user_email = u.user_email
         )
-        SELECT a.user_id AS id1, b.user_id AS id2, 1.0::numeric AS similarity
+        SELECT a.user_id AS id1, COALESCE(a.full_name, a.user_name) AS name1,
+               b.user_id AS id2, COALESCE(b.full_name, b.user_name) AS name2,
+               1.0::numeric AS similarity
         FROM dup_rows a JOIN dup_rows b ON a.user_email = b.user_email AND a.user_id < b.user_id
         LIMIT 1000`;
     }
