@@ -7,6 +7,16 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    # Tuned for the ~6GB ws_user table (15M rows) on an 8GB-RAM host — the postgres:14
+    # image defaults (shared_buffers=128MB, work_mem=4MB) force GroupAggregate/Hash Join
+    # over millions of rows to thrash instead of using memory. See DATABASE_NOTES.md.
+    command: >
+      postgres
+      -c shared_buffers=2GB
+      -c effective_cache_size=5GB
+      -c work_mem=64MB
+      -c maintenance_work_mem=256MB
+      -c random_page_cost=1.1
     ports:
       - "5432:5432"
     volumes:

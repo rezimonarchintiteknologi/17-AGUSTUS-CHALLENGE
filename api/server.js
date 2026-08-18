@@ -197,7 +197,7 @@ app.get('/api/search', async (req, res) => {
  *             schema:
  *               type: object
  *               properties:
- *                 duplicates: { type: integer, example: 12000 }
+ *                 duplicates: { type: integer, example: 1509793 }
  *                 missing_fields: { type: integer, example: 720000 }
  *                 quality_score: { type: number, example: 97.6 }
  *       500:
@@ -207,13 +207,30 @@ app.get('/api/search', async (req, res) => {
  *             schema: { $ref: '#/components/schemas/Error' }
  */
 // ROUND 3: GET /api/metrics
+// `duplicates` = jumlah user unik yang emailnya ATAU nomor teleponnya duplikat.
+// Dihitung via inclusion-exclusion (|email dup| + |phone dup| - |keduanya dup|) supaya
+// tidak perlu JOIN balik + UNION/DISTINCT di atas 15 juta baris - lihat DATABASE_NOTES.md.
 app.get('/api/metrics', async (req, res) => {
   try {
-    const [dup, missing, totalR] = await Promise.all([
-      pool.query(`SELECT COUNT(*)::bigint AS cnt FROM (
-        SELECT user_email FROM ws_user WHERE user_email IS NOT NULL AND user_email != ''
+    const [dupEmail, dupPhone, dupBoth, missing, totalR] = await Promise.all([
+      pool.query(`SELECT COALESCE(SUM(cnt), 0)::bigint AS rows FROM (
+        SELECT COUNT(*) AS cnt FROM ws_user WHERE user_email IS NOT NULL AND user_email != ''
         GROUP BY user_email HAVING COUNT(*) > 1
       ) d`),
+      pool.query(`SELECT COALESCE(SUM(cnt), 0)::bigint AS rows FROM (
+        SELECT COUNT(*) AS cnt FROM ws_user WHERE msisdn IS NOT NULL AND msisdn != ''
+        GROUP BY msisdn HAVING COUNT(*) > 1
+      ) d`),
+      pool.query(`WITH dup_emails AS (
+        SELECT user_email FROM ws_user WHERE user_email IS NOT NULL AND user_email != ''
+        GROUP BY user_email HAVING COUNT(*) > 1
+      ), dup_phones AS (
+        SELECT msisdn FROM ws_user WHERE msisdn IS NOT NULL AND msisdn != ''
+        GROUP BY msisdn HAVING COUNT(*) > 1
+      )
+      SELECT COUNT(*)::bigint AS rows FROM ws_user u
+      WHERE EXISTS (SELECT 1 FROM dup_emails de WHERE de.user_email = u.user_email)
+        AND EXISTS (SELECT 1 FROM dup_phones dp WHERE dp.msisdn = u.msisdn)`),
       pool.query(`SELECT
         COUNT(*) FILTER (WHERE user_email IS NULL OR user_email = '') AS missing_email,
         COUNT(*) FILTER (WHERE msisdn IS NULL OR msisdn = '') AS missing_phone
@@ -221,7 +238,7 @@ app.get('/api/metrics', async (req, res) => {
       pool.query(`SELECT COUNT(*)::bigint AS total FROM ws_user`),
     ]);
 
-    const duplicates = parseInt(dup.rows[0].cnt, 10);
+    const duplicates = parseInt(dupEmail.rows[0].rows, 10) + parseInt(dupPhone.rows[0].rows, 10) - parseInt(dupBoth.rows[0].rows, 10);
     const missingFields = parseInt(missing.rows[0].missing_email, 10) + parseInt(missing.rows[0].missing_phone, 10);
     const total = parseInt(totalR.rows[0].total, 10);
     const qualityScore = Math.max(0, Math.round((1 - (duplicates + missingFields) / (total * 2)) * 1000) / 10);
